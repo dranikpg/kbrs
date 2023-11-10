@@ -1,9 +1,10 @@
+#![feature(slice_pattern)]
+
 use tokio;
 
 mod client;
 mod server;
-
-async fn run() {}
+mod common;
 
 fn main() {
     let rt = tokio::runtime::Builder::new_current_thread()
