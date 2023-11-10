@@ -152,14 +152,14 @@ fn estimate_kwsize(text: &str, alphabet: &Alphabet) -> usize {
 
     let mut dists = Vec::<usize>::new();
     for (_, v) in pos {
-        if v.len() < 100 {
+        if v.len() < 5 {
             continue;
         }
         dists.extend(v.windows(2).map(|s| s[1] - s[0]))
     }
 
     dists.shuffle(&mut thread_rng());
-    dists.resize((dists.len() as f32 * 0.02) as usize, 0);
+    dists.resize((dists.len() as f32 * 0.01) as usize, 0);
 
     if dists.is_empty() {
         return 0;
@@ -184,31 +184,42 @@ fn cycle(word: &str) {
     };
 
     let mut success = Vec::<usize>::new();
-    let mut halfway = 0usize;
 
-    let files = std::fs::read_dir("./data").unwrap();
-    for file in files {
-        let test = std::fs::read_to_string(file.unwrap().path())
-            .unwrap()
-            .to_lowercase();
+    let data: String = std::fs::read_to_string("Articles.csv")
+        .unwrap()
+        .chars()
+        .filter(|c| c.is_ascii())
+        .map(|c| c.to_ascii_lowercase())
+        .collect();
 
-        let encr_test = encrypt(&test, &english, word, false);
+    let mut texts = Vec::<String>::new();
+
+    let mut rdr = csv::Reader::from_reader(data.trim().as_bytes());
+    for result in rdr.records().take(1000) {
+        let result = result.unwrap();
+        let text = result.get(0).unwrap().trim();
+        texts.push(text.to_owned());
+    }
+
+    texts.sort_by_key(|s| s.len());
+    texts.reverse();
+
+    for text in texts.iter().take(1000) {
+        let encr_test = encrypt(&text, &english, word, false);
 
         let estimated_len = estimate_kwsize(&encr_test, &english);
         let found_word = crack_vigere(&encr_test, &english, estimated_len);
 
         if found_word == word {
-            success.push(test.len())
-        } else if estimated_len == word.len() {
-            halfway += 1;
+            success.push(text.len())
         }
     }
+
     println!(
-        "Sucess rate for word len {}: {}, ... {:?}, .... halfway {}",
+        "Sucess rate for word len {}: {}, ... {:?}",
         word.len(),
         success.len(),
-        success.iter().min(),
-        halfway
+        success.iter().min()
     );
 }
 
