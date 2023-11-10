@@ -152,7 +152,7 @@ fn estimate_kwsize(text: &str, alphabet: &Alphabet) -> usize {
 
     let mut dists = Vec::<usize>::new();
     for (_, v) in pos {
-        if v.len() < 5 {
+        if v.len() < 3 {
             continue;
         }
         dists.extend(v.windows(2).map(|s| s[1] - s[0]))
@@ -185,7 +185,7 @@ fn cycle(word: &str) {
 
     let mut success = Vec::<usize>::new();
 
-    let data: String = std::fs::read_to_string("Articles.csv")
+    let data: String = std::fs::read_to_string("articles.csv")
         .unwrap()
         .chars()
         .filter(|c| c.is_ascii())
@@ -195,7 +195,7 @@ fn cycle(word: &str) {
     let mut texts = Vec::<String>::new();
 
     let mut rdr = csv::Reader::from_reader(data.trim().as_bytes());
-    for result in rdr.records().take(1000) {
+    for result in rdr.records().take(5000) {
         let result = result.unwrap();
         let text = result.get(0).unwrap().trim();
         texts.push(text.to_owned());
@@ -204,7 +204,7 @@ fn cycle(word: &str) {
     texts.sort_by_key(|s| s.len());
     texts.reverse();
 
-    for text in texts.iter().take(1000) {
+    for text in texts.iter().take(1200) {
         let encr_test = encrypt(&text, &english, word, false);
 
         let estimated_len = estimate_kwsize(&encr_test, &english);
@@ -216,10 +216,11 @@ fn cycle(word: &str) {
     }
 
     println!(
-        "Sucess rate for word len {}: {}, ... {:?}",
+        "Sucess rate for word len {}: {} / {}, min text size decrypted ... {}",
         word.len(),
         success.len(),
-        success.iter().min()
+        texts.len(),
+        success.iter().min().unwrap()
     );
 }
 
