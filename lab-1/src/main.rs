@@ -216,10 +216,11 @@ fn cycle(word: &str) {
     }
 
     println!(
-        "Sucess rate for word len {}: {} / {}, min text size decrypted ... {}",
+        "Sucess rate for word len {}: {} / {} = {}, min text size decrypted ... {}",
         word.len(),
         success.len(),
         texts.len(),
+        success.len() as f32 / texts.len() as f32,
         success.iter().min().unwrap()
     );
 }
