@@ -1,12 +1,10 @@
-use aes::{Aes256, BlockDecrypt, BlockEncrypt, NewBlockCipher};
-use rand::Rng;
 use rsa::{pkcs8::EncodePublicKey, Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
-use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use crate::common::AesWrapper;
+use crate::common::Command;
 
 const SERVER_ADDRESS: &str = "127.0.0.1:7878";
 
@@ -35,27 +33,44 @@ pub async fn run() {
         .unwrap();
 
     println!("Decrypted session key: {:?}", session_key);
-
-    println!("Enter the name of the file you want to retrieve:");
-
-    let filename = {
-        let mut filename = String::new();
-        io::stdin().read_line(&mut filename).unwrap();
-        filename.trim().to_owned()
-    };
-    stream.write_all(filename.as_bytes()).await.unwrap();
-
-    let mut encrypted_file_content = vec![];
-    stream
-        .read_to_end(&mut encrypted_file_content)
-        .await
-        .unwrap();
-
     let cipher = AesWrapper::new(&session_key);
-    cipher.decrypt(&mut encrypted_file_content);
 
-    println!(
-        "Decrypted file content:\n\n====\n{}\n====\n\n",
-        String::from_utf8_lossy(&encrypted_file_content)
-    );
+    loop {
+        print!("> ");
+        std::io::stdout().flush().ok();
+
+        let cmd = {
+            let mut buf = String::new();
+            io::stdin().read_line(&mut buf).unwrap();
+            if let Some(cmd) = Command::parse(&buf) {
+                cmd
+            } else {
+                continue;
+            }
+        };
+
+        // Send cmd
+        {
+            let mut cmd_str: Vec<u8> = serde_json::to_string(&cmd).unwrap().into();
+            cipher.encrypt(&mut cmd_str);
+
+            stream.write_u32(cmd_str.len() as u32).await.unwrap();
+            stream.write_all(&cmd_str).await.unwrap();
+        }
+
+        // Read response
+        let resp = {
+            let size = stream.read_u32().await.unwrap();
+            let mut resp = vec![0u8; size as usize];
+            stream.read_exact(&mut resp).await.unwrap();
+            cipher.decrypt(&mut resp);
+            resp
+        };
+
+        // Print response
+        println!(
+            "\n====\n{}\n====\n",
+            String::from_utf8_lossy(&resp)
+        );
+    }
 }
